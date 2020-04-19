@@ -1,14 +1,14 @@
 # stayhome-devkit
 AWS-based software development kit for remote worker
 
-# Background
+## Background
 
-# Overview
+## Overview
 
-# How to use
+## How to use
 
-# Creating base system
+## Creating base system
 ./create_base.sh <project_name>
 
-# Creating instance for each users
+## Creating instance for each users
 ./create_base.sh <project_name> <user_name>
