@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: StayHome DevKit - Step 1
+
+# ------------------------------------------------------------#
+# Stap 1 : Basic VPC resources
+#
+# 1. VPC
+# 2. Internet Gateway
+# 3. Route Table
+# 4. Subnet
+# 5. Security Group
+# ------------------------------------------------------------# 
+
+Metadata: 
+  "AWS::CloudFormation::Interface": 
+    ParameterGroups: 
+      - Label: 
+          default: "Project Name Prefix"
+        Parameters: 
+          - PJPrefix
+Parameters:
+  PJPrefix:
+    Type: String
+    # Replace to your own project name string
+    Default : {PROJECT_NAME}
+
+Resources:
+# ------------------------------------------------------------#
+# 1. VPC
+# ------------------------------------------------------------# 
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+      - Key: Name
+        Value: !Sub ${PJPrefix}-VPC
+
+# ------------------------------------------------------------#
+# 2. Internet Gateway
+# ------------------------------------------------------------# 
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub ${PJPrefix}-IGW
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+# ------------------------------------------------------------#
+# 3. Route Table
+# ------------------------------------------------------------# 
+  FrontendRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: AttachGateway
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${PJPrefix}-FrontendRoute
+  FrontendRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref FrontendRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+# ------------------------------------------------------------#
+# 4. Subnet
+# ------------------------------------------------------------# 
+  FrontendSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: AttachGateway
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: ap-northeast-1a
+      MapPublicIpOnLaunch: 'true'
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${PJPrefix}-FrontendSubnet
+  FrontendSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FrontendSubnet
+      RouteTableId: !Ref FrontendRouteTable
+
+# ------------------------------------------------------------#
+# 5. Security Group
+# ------------------------------------------------------------# 
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow SSH to client host
+        GroupName: !Sub ${PJPrefix}-SecurityGroup 
+        VpcId: !Ref VPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        Tags:
+        - Key: Name
+          Value: !Sub ${PJPrefix}
+# ------------------------------------------------------------#
+# Outputs
+# ------------------------------------------------------------# 
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub VpcId-${PJPrefix}
+
+  SecurityGroup:
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: !Sub SecurityGroup-${PJPrefix}
+
+  Subnet:
+    Value: !Ref FrontendSubnet
+    Export:
+      Name: !Sub Subnet-${PJPrefix}
+
+  RouteTable:
+    Value: !Ref FrontendRouteTable
+    Export:
+      Name: !Sub RouteTable-${PJPrefix}
+

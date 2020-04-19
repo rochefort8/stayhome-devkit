@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: StayHome DevKit - Step 2
+
+# ------------------------------------------------------------#
+# Stap 2 : Service to share file/source with thier endpoint 
+#
+# 1. S3
+# 2. AWS Transfer
+# 3. Codecommit
+# ------------------------------------------------------------# 
+
+Metadata: 
+  "AWS::CloudFormation::Interface": 
+    ParameterGroups: 
+      - Label: 
+          default: "Project Name Prefix"
+        Parameters: 
+          - PJPrefix
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
+Parameters:
+  PJPrefix:
+    Type: String
+        # Replace to your own project name string
+    Default : {PROJECT_NAME}
+
+Resources:
+# ------------------------------------------------------------#
+#  1. S3
+# ------------------------------------------------------------#
+  VPCS3Endpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      RouteTableIds: 
+        - { "Fn::ImportValue": !Sub "RouteTable-${PJPrefix}" }
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: { "Fn::ImportValue": !Sub "VpcId-${PJPrefix}"}
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${PJPrefix}
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+  S3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Sub ${S3Bucket}
+      PolicyDocument:
+        Statement:
+        - Action: 
+            - s3:Get*
+            - s3:List*
+          Effect: "Allow"
+          Principal: "*"
+          Resource: !Sub arn:aws:s3:::${S3Bucket}/*
+          Condition: 
+            StringEquals: 
+              aws:SourceVpce: 
+                - !Ref VPCS3Endpoint
+
+# ------------------------------------------------------------#
+#  2. AWS Tramfer fpr SFTP
+# ------------------------------------------------------------#
+  VPCTransferForSFTPEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: Interface
+      SubnetIds:
+        - { "Fn::ImportValue": !Sub "Subnet-${PJPrefix}" }
+      SecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "SecurityGroup-${PJPrefix}" }
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.transfer.server
+      VpcId: { "Fn::ImportValue": !Sub "VpcId-${PJPrefix}"}
+
+  SFTPLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: transfer.amazonaws.com
+            Action: sts:AssumeRole
+
+  SFTPServer:
+    Type: AWS::Transfer::Server
+    Properties:
+      EndpointType: VPC_ENDPOINT
+      EndpointDetails:
+        VpcEndpointId: !Ref VPCTransferForSFTPEndpoint
+      IdentityProviderType: SERVICE_MANAGED
+      LoggingRole: !GetAtt SFTPLogRole.Arn    
+      Tags: 
+        - Key: Name
+          Value: !Sub SFTPServer-${PJPrefix}     
+
+# ------------------------------------------------------------#
+#  3. CodeCommit
+# ------------------------------------------------------------#
+  VPCCodeCommitEndpoint:
+    Type: "AWS::EC2::VPCEndpoint"
+    Properties:
+      VpcEndpointType: Interface
+      SubnetIds:
+        - { "Fn::ImportValue": !Sub "Subnet-${PJPrefix}" }
+      SecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "SecurityGroup-${PJPrefix}" }
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.git-codecommit
+      VpcId: { "Fn::ImportValue": !Sub "VpcId-${PJPrefix}"}
+
+  CodeCommit:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: test-repo
+      RepositoryDescription: Test Repository with Code
+
+# ------------------------------------------------------------#
+# Output Parameters
+# ------------------------------------------------------------# 
+Outputs:
+  VPCEndpointS3:
+    Value: !Ref VPCS3Endpoint
+    Export:
+      Name: !Sub VPCEndpoint-S3-${PJPrefix}
+  VPCEndpointSFTP:
+    Value: !Ref VPCTransferForSFTPEndpoint
+    Export:
+      Name: !Sub VPCEndpoint-SFTP-${PJPrefix}  
+  VPCEndpointCodeCommit:
+    Value: !Ref VPCCodeCommitEndpoint
+    Export:
+      Name: !Sub VPCEndpoint-CodeCommit-${PJPrefix}
+  SFTPServer:
+#    Value: !Ref SFTPServer
+    Value: !GetAtt SFTPServer.ServerId
+    Export:
+      Name: !Sub SFTPServer-${PJPrefix}

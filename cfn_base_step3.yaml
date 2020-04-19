@@ -1,0 +1,273 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: StayHome DevKit - Step 3
+
+# ------------------------------------------------------------#
+# Stap 3 : IAM Policy/Role/Group/User 
+#
+# 1. IAM Policy/Role for TPFP
+# 2. IAM Policy for CodeCommit
+# 3. IAM Group
+# 4. IAM User
+# ------------------------------------------------------------# 
+
+Metadata: 
+  "AWS::CloudFormation::Interface": 
+    ParameterGroups: 
+      - Label: 
+          default: "Project Name Prefix"
+        Parameters: 
+          - PJPrefix
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
+Parameters:
+  PJPrefix:
+    Type: String
+    # Replace to your own project name string
+    Default : {PROJECT_NAME}
+
+Resources:
+# ------------------------------------------------------------#
+# 1. IAM Policy/Role for TPFP
+# ------------------------------------------------------------# 
+  SFTPPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PJPrefix}-S3-Policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+              - "s3:GetBucketLocation"
+            Resource: 
+              - !Sub arn:aws:s3:::${PJPrefix}
+          -
+            Effect: "Allow"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:DeleteObject"
+              - "s3:DeleteObjectVersion"
+              - "s3:GetObjectVersion"
+              - "s3:GetObjectACL"
+              - "s3:PutObjectACL"
+            Resource: 
+              - !Sub arn:aws:s3:::${PJPrefix}/*
+  SFTPRole:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "transfer.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+#        - !Sub arn:aws:iam::aws:policy/${PJPrefix}-S3-Policy
+        - !Ref SFTPPolicy
+      RoleName: !Sub ${PJPrefix}-SFTP-Role
+
+#  SFTPUser:
+#    Type : AWS::Transfer::User
+#    Properties :
+#      HomeDirectory: !Sub /${PJPrefix}
+#      Role: !GetAtt SFTPRole.Arn
+#      ServerId: s-18fda74668ed4a84a
+#      SshPublicKeys: [ "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEQldIFHFkUm3JELRV6et9cPL8FOIjzOF8LCBkPwmt7LMOvWGFI25FoCDJ53u1AHg34f7Ut74vD5Rwpmg7PaBTtxiS6vr3gRtgN6MzpYwzDtnfH4rE9QL4SgyLZp9OX7i+TkMoQim1eG2gVh2NeVtgL59C0o85HBlCJbIuThLLxjqK1y1Z9Y+6xuaxZPCcxep0SsVOBLur+pYbyIwBK+awQtzXwWNSnzfpqDSk1nabqGNJ6drz3k/YafxGuAu2ZLsa7yUVb/Urn58g7lsHh2Mj78xYJPQu1o/P/rw046zN/zrLTkK8qzLxR8tFMsDf72y1o/sZXOPVpiEerrz2pePF" ]
+#      UserName: sftp_user
+
+# ------------------------------------------------------------#
+# 2. IAM Policy for CodeCommit
+# ------------------------------------------------------------# 
+  CodeCommitPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PJPrefix}-CodeCommit-Policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "codecommit:*"
+            Resource: 
+              - "*"
+            Condition: 
+              StringEquals: 
+                aws:SourceVpce: 
+                  - { "Fn::ImportValue": !Sub "VPCEndpoint-CodeCommit-${PJPrefix}"}
+          -
+            Sid   : "CloudWatchEventsCodeCommitRulesAccess"
+            Effect: "Allow"
+            Action:
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:DisableRule
+              - events:EnableRule
+              - events:PutRule
+              - events:PutTargets
+              - events:RemoveTargets
+              - events:ListTargetsByRule
+            Resource: 
+              - "arn:aws:events:*:*:rule/codecommit*"
+
+          -
+            Sid: SNSTopicAndSubscriptionAccess
+            Effect: Allow
+            Action: 
+              - sns:CreateTopic
+              - sns:DeleteTopic
+              - sns:Subscribe
+              - sns:Unsubscribe
+              - sns:SetTopicAttributes
+          
+            Resource: 
+              - "arn:aws:sns:*:*:codecommit*"
+          -
+            Sid: SNSTopicAndSubscriptionReadAccess
+            Effect: Allow
+            Action: 
+              - sns:ListTopics
+              - sns:ListSubscriptionsByTopic
+              - sns:GetTopicAttributes
+            Resource: "*"
+          -
+            Sid: LambdaReadOnlyListAccess
+            Effect: Allow
+            Action: 
+                - lambda:ListFunctions
+            Resource: "*"
+          -
+            Sid: IAMReadOnlyListAccess
+            Effect: Allow
+            Action: 
+              - iam:ListUsers
+            Resource: "*"
+          -
+            Sid: IAMReadOnlyConsoleAccess
+            Effect: Allow
+            Action: 
+              - iam:ListAccessKeys
+              - iam:ListSSHPublicKeys
+              - iam:ListServiceSpecificCredentials
+            Resource: "arn:aws:iam::*:user/$-aws:username"
+          -
+            Sid: IAMUserSSHKeys
+            Effect: Allow
+            Action: 
+              - iam:DeleteSSHPublicKey
+              - iam:GetSSHPublicKey
+              - iam:ListSSHPublicKeys
+              - iam:UpdateSSHPublicKey
+              - iam:UploadSSHPublicKey
+            Resource: arn:aws:iam::*:user/$-aws:username        
+          -
+            Sid: IAMSelfManageServiceSpecificCredentials
+            Effect: Allow
+            Action: 
+              - iam:CreateServiceSpecificCredential
+              - iam:UpdateServiceSpecificCredential
+              - iam:DeleteServiceSpecificCredential
+              - iam:ResetServiceSpecificCredential
+            Resource: "arn:aws:iam::*:user/$-aws:username"
+        
+          -
+            Sid: CodeStarNotificationsReadWriteAccess
+            Effect: Allow
+            Action: 
+              - codestar-notifications:CreateNotificationRule
+              - codestar-notifications:DescribeNotificationRule
+              - codestar-notifications:UpdateNotificationRule
+              - codestar-notifications:DeleteNotificationRule
+              - codestar-notifications:Subscribe
+              - codestar-notifications:Unsubscribe
+            Resource: "*"
+            Condition: 
+                StringLike: 
+                    codestar-notifications:NotificationsForResource: arn:aws:codecommit:*
+          -
+            Sid: CodeStarNotificationsListAccess
+            Effect: Allow
+            Action: 
+              - codestar-notifications:ListNotificationRules
+              - codestar-notifications:ListTargets
+              - codestar-notifications:ListTagsforResource
+              - codestar-notifications:ListEventTypes
+            Resource: "*"
+          -
+            Sid: CodeStarNotificationsSNSTopicCreateAccess
+            Effect: Allow
+            Action: 
+              - sns:CreateTopic
+              - sns:SetTopicAttributes            
+            Resource: arn:aws:sns:*:*:codestar-notifications*
+          -
+            Sid: AmazonCodeGuruReviewerFullAccess
+            Effect: Allow
+            Action: 
+              - codeguru-reviewer:AssociateRepository
+              - codeguru-reviewer:DescribeRepositoryAssociation
+              - codeguru-reviewer:ListRepositoryAssociations
+              - codeguru-reviewer:DisassociateRepository            
+            Resource: "*"
+          -
+            Sid: AmazonCodeGuruReviewerSLRCreation
+            Action: iam:CreateServiceLinkedRole
+            Effect: Allow
+            Resource: arn:aws:iam::*:role/aws-service-role/codeguru-reviewer.amazonaws.com/AWSServiceRoleForAmazonCodeGuruReviewer
+            Condition: 
+                StringLike: 
+                    iam:AWSServiceName: codeguru-reviewer.amazonaws.com
+          -
+            Sid: CloudWatchEventsManagedRules
+            Effect: Allow
+            Action: 
+              - events:PutRule
+              - events:PutTargets
+              - events:DeleteRule
+              - events:RemoveTargets
+            Resource: "*"
+            Condition:
+                StringEquals:
+                    events:ManagedBy: codeguru-reviewer.amazonaws.com      
+          -
+            Sid: CodeStarNotificationsChatbotAccess
+            Effect: Allow
+            Action: 
+              - chatbot:DescribeSlackChannelConfigurations
+            Resource: "*"
+# ------------------------------------------------------------#
+# 3. IAM Group
+# ------------------------------------------------------------# 
+  Group:
+    Type: "AWS::IAM::Group"
+    Properties:
+      GroupName: !Sub ${PJPrefix}-Group
+      Path: "/"
+      ManagedPolicyArns: 
+        - !Ref CodeCommitPolicy
+        - !Ref SFTPPolicy
+
+# ------------------------------------------------------------#
+# IAM User
+# ------------------------------------------------------------# 
+  User:
+    Type: AWS::IAM::User
+    Properties: 
+      UserName: !Sub ${PJPrefix}-User
+      Groups: 
+        - !Ref Group
+
+
+    
+
+
