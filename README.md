@@ -41,7 +41,7 @@ AWS-based software development kit for remote worker
 ```
 $ ./create_base.sh <project_name>
 ```
-インストール結果は、コマンドラインの出力と、AWS コンソールの"CloudFormatio" の画面でみることが出来ます。
+インストール結果は、コマンドラインの出力と、AWS コンソールの"CloudFormation" の画面でみることが出来ます。
 終了すると、エンドポイントのURL などのが記載されたテキストファイルが"base"のフォルダに生成されます。
 
 ## ユーザごとのLinux 環境のインストール
