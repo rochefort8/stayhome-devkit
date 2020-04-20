@@ -30,7 +30,7 @@ Parameters:
     Default: t2.micro
   ImageId:
     Type:  AWS::EC2::Image::Id
-    Default: ami-093b908b31745fa80
+    Default: {AMI_ID}
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName  
     Default: {USER_NAME}

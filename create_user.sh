@@ -41,6 +41,16 @@ mkdir $user_dir
 info_file=$user_dir/info.txt
 rm -rf $info_file
 
+ami_id=$3
+if [ -z ${ami_id} ];then
+# -------
+# Get default Ubuntu 18.04 LTS AMI
+# -------
+    ami_id=$(aws ec2 describe-images --region ap-northeast-1 --owners 099720109477 \
+    --filters 'Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-????????' \
+    'Name=state,Values=available' --query 'reverse(sort_by(Images, &CreationDate))[:1].ImageId' --output text)
+fi
+
 # -------
 # Keypair for EC2 instance
 # -------
@@ -52,8 +62,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Set project name and user name
-sed -e "s/{PROJECT_NAME}/"$proj_name"/g" cfn_user.yaml > $temp_dir/tmp.yaml
-sed -e "s/{USER_NAME}/"$user_name"/g" $temp_dir/tmp.yaml > $temp_dir/cfn_user.yaml
+sed -e "s/{PROJECT_NAME}/"$proj_name"/g" cfn_user.yaml > $temp_dir/cfn_user.yaml
+sed -e "s/{USER_NAME}/"$user_name"/g" $temp_dir/cfn_user.yaml > $temp_dir/tmp.yaml
+sed -e "s/{AMI_ID}/"$ami_id"/g" $temp_dir/tmp.yaml > $temp_dir/cfn_user.yaml
+
 rm -rf $temp_dir/tmp.yaml
 
 create_stack() {
