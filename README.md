@@ -10,7 +10,7 @@ AWS-based software development kit for remote worker
 これをきっかけに、クラウドベースの開発環境に移行しましょう。
 
 ## 機能
-"StayHome DevKit" は、Linux ベースで複数人で行う開発に必ず必要な、以下のような機能を備えています。
+"StayHome DevKit" は、Linux ベースでのソフトウェア開発に最低限必要な、以下のような機能を備えています。
 
 * Ubuntu Linux環境 
 * 共有ストレージ 
