@@ -56,10 +56,10 @@ $ ./create_base.sh <project_name>
 ### 活用しているAWSサービス
 
 * VPC 
- - Internet Gateway
- - Route Table
- - Subnet
- - VPC Endpoint
+  - Internet Gateway
+  - Route Table
+  - Subnet
+  - VPC Endpoint
 * S3
 * EC2 
 * CodeCommit (git リポジトリ)
