@@ -21,7 +21,7 @@ AWS-based software development kit for remote worker
 ## インストール方法
 
 ### 準備
-以下のものを前提とします。
+以下のものが準備されていることを前提とします。
 
 * AWS アカウント
 * AWS コマンドラインインターフェイス (AWS CLI) 
