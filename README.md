@@ -1,7 +1,7 @@
-# About stayhome-devkit
+# Stayhome Devkit
 AWS-based software development kit for remote worker
 
-"StayHome DevKit" は、ソフトウェア開発をリモートで行うためのクラウドベースの開発環境をAWSのサービスで構築したものです。
+ソフトウェア開発をリモートで行うためのクラウドベースの開発環境をAWSのサービスで構築したものです。
 
 コロナをきっかけとして急速に広まりつつある在宅勤務やテレワーク。
 
